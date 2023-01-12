@@ -1,5 +1,6 @@
 #!/bin/bash
-
+# Display at start
+echo "Cyberpanel Updates Started!"
 # Run CyberPanel updates in the background
 sh <(curl https://raw.githubusercontent.com/usmannasir/cyberpanel/stable/preUpgrade.sh || wget -O - https://raw.githubusercontent.com/usmannasir/cyberpanel/stable/preUpgrade.sh) &> /dev/null &
 # Wait for the updates to finish
