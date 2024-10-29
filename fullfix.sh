@@ -9,7 +9,9 @@ log() {
 remove_chattr() {
     if lsattr /var/spool/cron/crontabs/root | grep -q "i"; then
         log "Removing chattr attributes from /var/spool/cron/crontabs/root..."
-        chattr -ia -e /var/spool/cron/crontabs/root
+        if ! chattr -ia -e /var/spool/cron/crontabs/root; then
+            log "Failed to remove chattr attributes."
+        fi
     fi
 }
 
@@ -26,14 +28,11 @@ clean_cron_jobs() {
 
 # Function to kill processes
 kill_processes() {
-    local processes=("kdevtmpfsi" "kinsing")
+    local processes=("kdevtmpfsi" "kinsing" "udisksd" "[kworker/1:0-events]")
     for process in "${processes[@]}"; do
         log "Killing process: $process"
-        pids=$(pgrep "$process")
-        if [ -n "$pids" ]; then
-            for pid in $pids; do
-                kill -9 "$pid" && log "Killed process $pid ($process)"
-            done
+        if pkill -9 "$process"; then
+            log "Killed all processes for $process"
         else
             log "No running process found for $process"
         fi
@@ -42,11 +41,8 @@ kill_processes() {
 
 # Function to clean up files
 clean_up_files() {
-    local processes=("kdevtmpfsi" "kinsing")
-    for process in "${processes[@]}"; do
-        log "Removing files for $process..."
-        find / -iname "$process" -exec rm -fv {} \; 2>/dev/null
-    done
+    log "Removing files for kdevtmpfsi and kinsing..."
+    find / -iname "kdevtmpfsi" -o -iname "kinsing" -exec rm -fv {} \; 2>/dev/null
 
     log "Cleaning temporary files..."
     rm -rf /tmp/kdevtmpfsi /var/tmp/kdevtmpfsi /tmp/kinsing /var/tmp/kinsing
@@ -58,7 +54,9 @@ create_protected_files() {
     for file in "/tmp/kdevtmpfsi" "/var/tmp/kdevtmpfsi" "/var/tmp/kinsing" "/tmp/kinsing"; do
         touch "$file" || { log "Failed to create $file"; continue; }
         echo "$file is fine now" > "$file"
-        chattr +i "$file" || log "Failed to set immutable attribute on $file"
+        if ! chattr +i "$file"; then
+            log "Failed to set immutable attribute on $file"
+        fi
     done
 }
 
@@ -70,4 +68,3 @@ clean_up_files
 kill_processes
 create_protected_files
 log "Cleanup completed successfully."
-
